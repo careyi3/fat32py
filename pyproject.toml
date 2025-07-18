@@ -1,0 +1,15 @@
+[project]
+name = "inventory"
+version = "0.1.0"
+description = "FAT32 Browser"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "ipython>=8.37.0",
+    "ptpython>=3.0.30",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.11.10",
+]
