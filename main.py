@@ -16,4 +16,4 @@ if __name__ == "__main__":
                 print(f"File read in chunks: {file['name']}")
 
                 for chunk in disk.read_file_in_chunks(file):
-                    chunk.decode("ascii", errors="replace")
+                    print(chunk.decode("ascii", errors="replace"))

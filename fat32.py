@@ -247,10 +247,6 @@ def _read_file_in_chunks(reader, partition, bios_parameter_block, file):
         cluster = _get_next_cluster(reader, partition, bios_parameter_block, cluster)
 
 
-def _create_file_at_root(writer, partition, bios_parameter_block, name):
-    print("")
-
-
 class DiskNotInitialised(Exception):
     """Exception raised when the disk isn't initialised.
 
@@ -264,9 +260,14 @@ class DiskNotInitialised(Exception):
 
 
 class Disk:
-    def __init__(self, reader, writer):
+    """Object for intefacing with a FAT32 disk.
+
+    Attributes:
+        reader -- function that can read 512 bytes at a time from a given drive
+    """
+
+    def __init__(self, reader):
         self.reader = reader
-        self.writer = writer
         self.partitions = []
         self.partition = None
         self.bios_parameter_block = None
@@ -297,11 +298,4 @@ class Disk:
             raise DiskNotInitialised
         yield from _read_file_in_chunks(
             self.reader, self.partition, self.bios_parameter_block, file
-        )
-
-    def create_file_at_root(self, name):
-        if not self.initialised:
-            raise DiskNotInitialised
-        return _create_file_at_root(
-            self.writer, self.partition, self.bios_parameter_block, name
         )
