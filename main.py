@@ -1,3 +1,4 @@
+from pprint import pp
 from fat32 import Disk
 
 if __name__ == "__main__":
@@ -11,9 +12,15 @@ if __name__ == "__main__":
         disk = Disk(read_block)
         disk.init()
 
+        print("\nDisk Partitions:\n")
+        pp(disk.partitions)
+        print("\nFirst Partition Bios Parameter Block:\n")
+        pp(disk.bios_parameter_block)
+        print()
+
         for file in disk.list_root_files():
             if file["size"] > 0 and file["start_cluster"] > 0 and not file["is_lfn"]:
-                print(f"File read in chunks: {file['name']}")
+                print(f"Reading file in chunks: {file['name']}\n")
 
                 for chunk in disk.read_file_in_chunks(file):
                     print(chunk.decode("ascii", errors="replace"))
