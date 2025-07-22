@@ -4,19 +4,9 @@ LOGICAL_BLOCK_SIZE = 512
 PARTITION_BLOCK_SIZE = 512
 
 
-def _read_disk(reader, offset, length):
-    start_block = offset // LOGICAL_BLOCK_SIZE
-    end_block = (offset + length - 1) // LOGICAL_BLOCK_SIZE
-
-    result = bytearray()
-    for block_num in range(start_block, end_block + 1):
-        block = reader(block_num)
-        result.extend(block)
-
-    start_within_result = offset - (start_block * LOGICAL_BLOCK_SIZE)
-    end_within_result = start_within_result + length
-
-    return result[start_within_result:end_within_result]
+def _read_disk(reader, offset):
+    block = offset // LOGICAL_BLOCK_SIZE
+    return reader(block)
 
 
 def _parse_partitions(data):
@@ -47,7 +37,7 @@ def _parse_partitions(data):
 
 
 def _get_partitions(reader):
-    data = _read_disk(reader, 0, PARTITION_BLOCK_SIZE)
+    data = _read_disk(reader, 0)
     return _parse_partitions(data)
 
 
@@ -98,7 +88,7 @@ def _parse_bios_parameter_block(data):
 def _get_bios_parameter_block(reader, partition):
     partition_sector_offset = partition["start_lba"]
     partition_offset = partition_sector_offset * PARTITION_BLOCK_SIZE
-    data = _read_disk(reader, partition_offset, LOGICAL_BLOCK_SIZE)
+    data = _read_disk(reader, partition_offset)
     return _parse_bios_parameter_block(data)
 
 
@@ -204,8 +194,14 @@ def _get_next_cluster(reader, partition, bios_parameter_block, cluster):
     bytes_per_sector = bios_parameter_block["bytes_per_sector"]
     offset = fat_start_sector * bytes_per_sector
 
-    cluster_offset = cluster * 4
-    data = _read_disk(reader, partition_offset + offset + cluster_offset, 4)
+    cluster_byte_start = cluster * 4
+    sector_num = cluster_byte_start // 512
+
+    data = _read_disk(
+        reader, partition_offset + offset + (sector_num * LOGICAL_BLOCK_SIZE)
+    )
+    start = cluster_byte_start % LOGICAL_BLOCK_SIZE
+    data = data[start : start + 4]
     return struct.unpack("<I", data)[0] & 0x0FFFFFFF
 
 
@@ -233,16 +229,19 @@ def _read_file_in_chunks(reader, partition, bios_parameter_block, file):
             (cluster - 2) * bytes_per_cluster
         )
 
+        sectors_to_read = 64
         if file["size"] < (i * bytes_per_cluster):
-            chunk = _read_disk(
-                reader,
-                partition_offset + offset,
-                bytes_per_cluster - ((i * bytes_per_cluster) - file["size"]),
-            )
-        else:
-            chunk = _read_disk(reader, partition_offset + offset, bytes_per_cluster)
+            sectors_to_read = (
+                bytes_per_cluster - ((i * bytes_per_cluster) - file["size"])
+            ) // 512
+            if file["size"] % LOGICAL_BLOCK_SIZE != 0:
+                sectors_to_read += 1
 
-        yield chunk
+        for sec in range(0, sectors_to_read):
+            yield _read_disk(
+                reader, partition_offset + offset + (sec * LOGICAL_BLOCK_SIZE)
+            )
+
         i += 1
         cluster = _get_next_cluster(reader, partition, bios_parameter_block, cluster)
 
