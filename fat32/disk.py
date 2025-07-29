@@ -23,9 +23,9 @@ class Disk:
         reader -- function that can read 512 bytes at a time from a given drive
     """
 
-    def __init__(self, reader):
+    def __init__(self, reader, writer):
         self.reader = reader
-        self.writer = None
+        self.writer = writer
         self.partitions = []
         self.partition = None
         self.bios_parameter_block = None
@@ -34,7 +34,7 @@ class Disk:
     # Private Instance Methods
     def _read_disk(self, offset):
         block = offset // LOGICAL_BLOCK_SIZE
-        return self.reader(block)
+        return bytearray(self.reader(block))
 
     def _write_disk(self, offset, data):
         block = offset // LOGICAL_BLOCK_SIZE
@@ -116,13 +116,19 @@ class Disk:
                 if file["size"] % LOGICAL_BLOCK_SIZE != 0:
                     sectors_to_read += 1
 
+            next_cluster = self._get_next_cluster(cluster)
             for sec in range(0, sectors_to_read):
-                yield self._read_disk(
+                data = self._read_disk(
                     partition_offset + offset + (sec * LOGICAL_BLOCK_SIZE)
                 )
+                if sec == sectors_to_read - 1 and next_cluster >= 0x0FFFFFF8:
+                    data = data[
+                        0 : file["size"] % LOGICAL_BLOCK_SIZE or LOGICAL_BLOCK_SIZE
+                    ]
+                yield data
 
             i += 1
-            cluster = self._get_next_cluster(cluster)
+            cluster = next_cluster
 
     def _get_fat_size_in_sectors(self):
         return self.bios_parameter_block["fat_size_32"]
@@ -189,7 +195,7 @@ class Disk:
         data, sector_num, idx = self._find_next_empty_fat_entry(last_cluster)
         entry = (0x0FFFFFF8 & 0x0FFFFFFF).to_bytes(4, byteorder="little")
         self._write_fat_entry(data, sector_num, idx, entry)
-        new_cluster = (sector_num * LOGICAL_BLOCK_SIZE) + idx // 4
+        new_cluster = ((sector_num * LOGICAL_BLOCK_SIZE) + idx) // 4
 
         data, sector_num, idx = self._get_fat_block_for_cluster(last_cluster)
 
@@ -199,35 +205,76 @@ class Disk:
     def _get_files_last_cluster(self, file):
         cluster = file["start_cluster"]
         while cluster < 0x0FFFFFF8:
-            cluster = self._get_next_cluster(cluster)
+            next_cluster = self._get_next_cluster(cluster)
+            if next_cluster < 0x0FFFFFF8:
+                cluster = self._get_next_cluster(cluster)
+            else:
+                return cluster
         return cluster
 
-    def _append_to_file(self, file, data):
+    def _create_file_record(self, file):
+        # TODO: Make this actually create the file record
+        return file
+
+    def _update_file_record(self, file, num_bytes_written):
+        # TODO: Make this actually update the file record
+        file["size"] = file["size"] + num_bytes_written
+        return file
+
+    def _write_to_last_cluster(self, file, data):
         partition_offset = self._get_partition_offset()
         bytes_per_cluster = self._get_bytes_per_cluster()
         data_sector_bytes_offset = self._get_data_sector_bytes_offset()
         file_size = file["size"]
         free_bytes_in_cluster = bytes_per_cluster - (file_size % bytes_per_cluster)
         last_cluster = self._get_files_last_cluster(file)
-        if free_bytes_in_cluster >= len(data):
-            cluster_used_bytes = file_size % bytes_per_cluster
-            used_sectors = cluster_used_bytes // LOGICAL_BLOCK_SIZE
-            eof_index = cluster_used_bytes % LOGICAL_BLOCK_SIZE
-            offset = data_sector_bytes_offset + ((last_cluster - 2) * bytes_per_cluster)
-            block = self._read_disk(
-                partition_offset + offset + (used_sectors * LOGICAL_BLOCK_SIZE)
-            )
 
-            # Find the sector to read which contains the end of file in the cluster
-            # Read sector, loop until you find the EOF, start writing data until the block is filled or data is empty,
-            # write block, loop until the data is empty
-        else:
-            raise Exception("Not implemented")
-            # fill the cluster with some of the data
-            # chomp the remaining data
-            # allocate new cluster
-            # fill with blocks of data until cluster is full
-            # repeat until data is written
+        cluster_used_bytes = file_size % bytes_per_cluster
+        used_sectors = cluster_used_bytes // LOGICAL_BLOCK_SIZE
+        eof_index = cluster_used_bytes % LOGICAL_BLOCK_SIZE
+        offset = data_sector_bytes_offset + ((last_cluster - 2) * bytes_per_cluster)
+        block = self._read_disk(
+            partition_offset + offset + (used_sectors * LOGICAL_BLOCK_SIZE)
+        )
+
+        written = 0
+        while free_bytes_in_cluster > 0:
+            if len(data) == 0:
+                break
+
+            d = data.pop(0)
+            written += 1
+            free_bytes_in_cluster -= 1
+            block[eof_index] = d
+            eof_index += 1
+            if eof_index == LOGICAL_BLOCK_SIZE:
+                if len(data) > 0:
+                    self._write_disk(
+                        partition_offset + offset + (used_sectors * LOGICAL_BLOCK_SIZE),
+                        block,
+                    )
+                    used_sectors += 1
+                    eof_index = 0
+                    block = self._read_disk(
+                        partition_offset + offset + (used_sectors * LOGICAL_BLOCK_SIZE)
+                    )
+
+        self._write_disk(
+            partition_offset + offset + (used_sectors * LOGICAL_BLOCK_SIZE),
+            block,
+        )
+
+        return data, written
+
+    def _append_to_file(self, file, data):
+        while len(data) > 0:
+            data, written = self._write_to_last_cluster(file, data)
+            file = self._update_file_record(file, written)
+            if len(data) > 0:
+                last_cluster = self._get_files_last_cluster(file)
+                self._allocate_next_free_cluster(last_cluster)
+
+        return file
 
     # Private Class Methods
     @classmethod
@@ -398,5 +445,10 @@ class Disk:
         if not self.initialised:
             raise DiskNotInitialised
         yield from self._read_file_in_chunks(file)
+
+    def append_to_file(self, file, data):
+        if not self.initialised:
+            raise DiskNotInitialised
+        return self._append_to_file(file, data)
 
     # Public Class Methods

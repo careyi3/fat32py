@@ -15,7 +15,7 @@ def main():
             f.seek(logical_block_address * 512)
             return f.read(512)
 
-        disk = Disk(read_block)
+        disk = Disk(read_block, None)
         disk.init()
 
         print("\nDisk Partitions:\n")

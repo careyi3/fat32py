@@ -1,4 +1,6 @@
 import pytest
+import random
+import string
 from fat32 import Disk
 
 
@@ -9,7 +11,7 @@ def test_init(drive):
             f.seek(logical_block_address * 512)
             return f.read(512)
 
-        disk = Disk(read_block)
+        disk = Disk(read_block, None)
         disk.init()
 
         partition_table = [
@@ -87,7 +89,7 @@ def test_list_files(drive):
             f.seek(logical_block_address * 512)
             return f.read(512)
 
-        disk = Disk(read_block)
+        disk = Disk(read_block, None)
         disk.init()
 
         files = [
@@ -202,7 +204,7 @@ def test_read_files(drive):
             f.seek(logical_block_address * 512)
             return f.read(512)
 
-        disk = Disk(read_block)
+        disk = Disk(read_block, None)
         disk.init()
 
         strings = []
@@ -211,7 +213,69 @@ def test_read_files(drive):
                 s = ""
                 for chunk in disk.read_file_in_chunks(file):
                     s += chunk.decode("ascii", errors="replace")
-
                 strings.append(s)
 
-        assert [len(s) for s in strings] == [512, 4096, 52224, 4096]
+        assert [len(s) for s in strings] == [11, 4096, 52117, 4096]
+
+
+def test_append_to_file(drive):
+    with open(drive, "rb+") as f:
+
+        def read_block(logical_block_address):
+            f.seek(logical_block_address * 512)
+            return f.read(512)
+
+        def write_block(logical_block_address, data):
+            f.seek(logical_block_address * 512)
+            return f.write(data)
+
+        disk = Disk(read_block, write_block)
+        disk.init()
+
+        to_write = None
+        for file in disk.list_root_files():
+            if file["name"] == "LOG-1":
+                to_write = file
+                break
+
+        file = disk.append_to_file(to_write, bytearray(bytes("Test Data", "ascii")))
+
+        s = ""
+        for chunk in disk.read_file_in_chunks(file):
+            s += chunk.decode("ascii", errors="replace")
+
+        assert s == "log line 1\nTest Data"
+
+
+def test_append_multiple_clusters_to_file(drive):
+    with open(drive, "rb+") as f:
+
+        def read_block(logical_block_address):
+            f.seek(logical_block_address * 512)
+            return f.read(512)
+
+        def write_block(logical_block_address, data):
+            f.seek(logical_block_address * 512)
+            return f.write(data)
+
+        disk = Disk(read_block, write_block)
+        disk.init()
+
+        to_write = None
+        for file in disk.list_root_files():
+            if file["name"] == "LOG-1":
+                to_write = file
+                break
+
+        random_text = "".join(
+            random.choices(string.ascii_letters + string.digits, k=1000)
+        )
+        data = bytearray(random_text, "ascii")
+
+        file = disk.append_to_file(to_write, data)
+
+        output = ""
+        for chunk in disk.read_file_in_chunks(file):
+            output += chunk.decode("ascii", errors="replace")
+
+        assert output == f"log line 1\n{random_text}"
