@@ -77,9 +77,9 @@ def test_init(drive):
             "total_sectors_32": 131070,
         }
 
-        assert disk.partitions == partition_table
-        assert disk.partition == partition
-        assert disk.bios_parameter_block == bios_parameter_block
+        assert [p.to_dict() for p in disk.partitions] == partition_table
+        assert disk.partition.to_dict() == partition
+        assert disk.bios_parameter_block.to_dict() == bios_parameter_block
 
 
 def test_list_files(drive):
