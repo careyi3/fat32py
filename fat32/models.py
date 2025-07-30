@@ -1,35 +1,74 @@
 import struct
+from typing import Any, Dict, List, Optional, Set, Union
 
-PARTITION_BLOCK_SIZE = 512
+PARTITION_BLOCK_SIZE: int = 512
 
 
 class BiosParameterBlock:
-    def __init__(self, data):
-        self.bytes_per_sector = struct.unpack_from("<H", data, 11)[0]
-        self.sectors_per_cluster = data[13]
-        self.reserved_sector_count = struct.unpack_from("<H", data, 14)[0]
-        self.num_fats = data[16]
-        self.total_sectors_16 = struct.unpack_from("<H", data, 19)[0]
-        self.total_sectors_32 = struct.unpack_from("<I", data, 32)[0]
-        self.fat_size_16 = struct.unpack_from("<H", data, 22)[0]
-        self.fat_size_32 = struct.unpack_from("<I", data, 36)[0]
-        self.root_cluster = struct.unpack_from("<I", data, 44)[0]
-        self.fs_info_sector = struct.unpack_from("<H", data, 48)[0]
-        self.backup_boot_sector = struct.unpack_from("<H", data, 50)[0]
+    """
+    Represents the BIOS Parameter Block for a FAT32 partition.
 
-        self.fat_size = self.fat_size_32 if self.fat_size_16 == 0 else self.fat_size_16
-        self.total_sectors = (
+    Attributes:
+        bytes_per_sector (int): Number of bytes per sector.
+        sectors_per_cluster (int): Number of sectors per cluster.
+        reserved_sector_count (int): Number of reserved sectors.
+        num_fats (int): Number of FAT tables.
+        total_sectors_16 (int): Total sectors (16-bit).
+        total_sectors_32 (int): Total sectors (32-bit).
+        fat_size_16 (int): FAT size in sectors (16-bit).
+        fat_size_32 (int): FAT size in sectors (32-bit).
+        root_cluster (int): First cluster of the root directory.
+        fs_info_sector (int): FSInfo sector number.
+        backup_boot_sector (int): Backup boot sector number.
+        fat_size (int): FAT size in sectors.
+        total_sectors (int): Total sectors.
+        fat_start_sector (int): FAT start sector.
+        data_start_sector (int): Data start sector.
+        root_dir_first_cluster (int): First cluster of the root directory.
+    """
+
+    def __init__(self, data: bytes) -> None:
+        """
+        Initialize a BiosParameterBlock from raw sector data.
+
+        Parameters:
+            data (bytes): Raw sector data.
+        Returns:
+            None
+        """
+        self.bytes_per_sector: int = struct.unpack_from("<H", data, 11)[0]
+        self.sectors_per_cluster: int = data[13]
+        self.reserved_sector_count: int = struct.unpack_from("<H", data, 14)[0]
+        self.num_fats: int = data[16]
+        self.total_sectors_16: int = struct.unpack_from("<H", data, 19)[0]
+        self.total_sectors_32: int = struct.unpack_from("<I", data, 32)[0]
+        self.fat_size_16: int = struct.unpack_from("<H", data, 22)[0]
+        self.fat_size_32: int = struct.unpack_from("<I", data, 36)[0]
+        self.root_cluster: int = struct.unpack_from("<I", data, 44)[0]
+        self.fs_info_sector: int = struct.unpack_from("<H", data, 48)[0]
+        self.backup_boot_sector: int = struct.unpack_from("<H", data, 50)[0]
+
+        self.fat_size: int = (
+            self.fat_size_32 if self.fat_size_16 == 0 else self.fat_size_16
+        )
+        self.total_sectors: int = (
             self.total_sectors_32
             if self.total_sectors_16 == 0
             else self.total_sectors_16
         )
-        self.fat_start_sector = self.reserved_sector_count
-        self.data_start_sector = self.reserved_sector_count + (
+        self.fat_start_sector: int = self.reserved_sector_count
+        self.data_start_sector: int = self.reserved_sector_count + (
             self.num_fats * self.fat_size
         )
-        self.root_dir_first_cluster = self.root_cluster
+        self.root_dir_first_cluster: int = self.root_cluster
 
-    def to_dict(self):
+    def to_dict(self) -> Dict[str, int]:
+        """
+        Serialize the BIOS Parameter Block to a dictionary.
+
+        Returns:
+            Dict[str, int]: Dictionary of BPB fields.
+        """
         return {
             "bytes_per_sector": self.bytes_per_sector,
             "sectors_per_cluster": self.sectors_per_cluster,
@@ -49,34 +88,87 @@ class BiosParameterBlock:
             "root_dir_first_cluster": self.root_dir_first_cluster,
         }
 
-    def get_bytes_per_cluster(self):
-        bytes_per_sector = self.bytes_per_sector
-        sectors_per_cluster = self.sectors_per_cluster
-        return sectors_per_cluster * bytes_per_sector
+    def get_bytes_per_cluster(self) -> int:
+        """
+        Get the number of bytes per cluster.
 
-    def get_sectors_per_cluster(self):
-        sectors_per_cluster = self.sectors_per_cluster
-        return sectors_per_cluster
+        Returns:
+            int: Bytes per cluster.
+        """
+        return self.sectors_per_cluster * self.bytes_per_sector
 
-    def get_fat_table_byte_offset(self):
-        fat_start_sector = self.fat_start_sector
-        bytes_per_sector = self.bytes_per_sector
-        return fat_start_sector * bytes_per_sector
+    def get_sectors_per_cluster(self) -> int:
+        """
+        Get the number of sectors per cluster.
 
-    def get_data_sector_bytes_offset(self):
-        bytes_per_sector = self.bytes_per_sector
-        data_sector_starts = self.data_start_sector
-        return data_sector_starts * bytes_per_sector
+        Returns:
+            int: Sectors per cluster.
+        """
+        return self.sectors_per_cluster
 
-    def get_fat_size_in_sectors(self):
-        fat_size_in_sectors = self.fat_size_32
-        return fat_size_in_sectors
+    def get_fat_table_byte_offset(self) -> int:
+        """
+        Get the byte offset of the FAT table.
+
+        Returns:
+            int: FAT table byte offset.
+        """
+        return self.fat_start_sector * self.bytes_per_sector
+
+    def get_data_sector_bytes_offset(self) -> int:
+        """
+        Get the byte offset of the data sector.
+
+        Returns:
+            int: Data sector byte offset.
+        """
+        return self.data_start_sector * self.bytes_per_sector
+
+    def get_fat_size_in_sectors(self) -> int:
+        """
+        Get the FAT size in sectors.
+
+        Returns:
+            int: FAT size in sectors.
+        """
+        return self.fat_size_32
 
 
 class Partition:
+    """
+    Represents a partition entry in the partition table.
+
+    Attributes:
+        boot_flag (int): Boot flag byte.
+        start_chs (bytes): Starting CHS address.
+        type (int): Partition type byte.
+        end_chs (bytes): Ending CHS address.
+        start_lba (int): Starting LBA sector.
+        num_sectors (int): Number of sectors in the partition.
+    """
+
     def __init__(
-        self, boot_flag, start_chs, part_type, end_chs, start_lba, num_sectors
-    ):
+        self,
+        boot_flag: int,
+        start_chs: bytes,
+        part_type: int,
+        end_chs: bytes,
+        start_lba: int,
+        num_sectors: int,
+    ) -> None:
+        """
+        Initialize a Partition object.
+
+        Parameters:
+            boot_flag (int): Boot flag byte.
+            start_chs (bytes): Starting CHS address.
+            part_type (int): Partition type byte.
+            end_chs (bytes): Ending CHS address.
+            start_lba (int): Starting LBA sector.
+            num_sectors (int): Number of sectors in the partition.
+        Returns:
+            None
+        """
         self.boot_flag = boot_flag
         self.start_chs = start_chs
         self.type = part_type
@@ -84,7 +176,13 @@ class Partition:
         self.start_lba = start_lba
         self.num_sectors = num_sectors
 
-    def to_dict(self):
+    def to_dict(self) -> Dict[str, Union[int, bytes]]:
+        """
+        Serialize the Partition to a dictionary.
+
+        Returns:
+            Dict[str, Union[int, bytes]]: Dictionary of partition fields.
+        """
         return {
             "boot_flag": self.boot_flag,
             "start_chs": self.start_chs,
@@ -94,14 +192,28 @@ class Partition:
             "num_sectors": self.num_sectors,
         }
 
-    def get_partition_offset(self):
+    def get_partition_offset(self) -> int:
+        """
+        Get the byte offset of the partition start.
+
+        Returns:
+            int: Partition byte offset.
+        """
         partition_sector_offset = self.start_lba
         partition_offset = partition_sector_offset * PARTITION_BLOCK_SIZE
         return partition_offset
 
     @classmethod
-    def parse_partitions(cls, data):
-        parsed_entries = []
+    def parse_partitions(cls, data: bytes) -> List["Partition"]:
+        """
+        Parse up to 4 partition entries from raw MBR data.
+
+        Parameters:
+            data (bytes): Raw MBR sector data.
+        Returns:
+            List[Partition]: List of Partition objects.
+        """
+        parsed_entries: List[Partition] = []
         for i in range(4):
             start_idx = 446 + (i * 16)
             end_idx = start_idx + 16
@@ -128,18 +240,49 @@ class Partition:
 
 
 class File:
+    """
+    Represents a file or directory entry in FAT32.
+
+    Attributes:
+        name (str): File or directory name.
+        attr (int): Attribute byte.
+        attributes (Set[str]): Set of attribute flags.
+        start_cluster (int): Starting cluster number.
+        size (int): File size in bytes.
+        created (str): Creation timestamp.
+        accessed (str): Last access date.
+        written (str): Last write timestamp.
+        is_lfn (bool): Whether entry is a long file name.
+    """
+
     def __init__(
         self,
-        name,
-        attr,
-        attributes,
-        start_cluster,
-        size,
-        created,
-        accessed,
-        written,
-        is_lfn,
-    ):
+        name: str,
+        attr: int,
+        attributes: Set[str],
+        start_cluster: int,
+        size: int,
+        created: str,
+        accessed: str,
+        written: str,
+        is_lfn: bool,
+    ) -> None:
+        """
+        Initialize a File object.
+
+        Parameters:
+            name (str): File or directory name.
+            attr (int): Attribute byte.
+            attributes (Set[str]): Set of attribute flags.
+            start_cluster (int): Starting cluster number.
+            size (int): File size in bytes.
+            created (str): Creation timestamp.
+            accessed (str): Last access date.
+            written (str): Last write timestamp.
+            is_lfn (bool): Whether entry is a long file name.
+        Returns:
+            None
+        """
         self.name = name
         self.attr = attr
         self.attributes = attributes
@@ -150,7 +293,13 @@ class File:
         self.written = written
         self.is_lfn = is_lfn
 
-    def to_dict(self):
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Serialize the File to a dictionary.
+
+        Returns:
+            Dict[str, Any]: Dictionary of file fields.
+        """
         return {
             "name": self.name,
             "attr": self.attr,
@@ -164,8 +313,16 @@ class File:
         }
 
     @classmethod
-    def parse_directory_entries(cls, data):
-        entries = []
+    def parse_directory_entries(cls, data: bytes) -> List["File"]:
+        """
+        Parse directory entries from raw directory data.
+
+        Parameters:
+            data (bytes): Raw directory data.
+        Returns:
+            List[File]: List of File objects.
+        """
+        entries: List[File] = []
         for i in range(0, len(data), 32):
             entry = data[i : i + 32]
             if entry[0] == 0x00:
@@ -187,19 +344,19 @@ class File:
 
             start_cluster = (fst_clus_hi << 16) | fst_clus_lo
 
-            def decode_date(d):
+            def decode_date(d: int) -> str:
                 year = ((d >> 9) & 0x7F) + 1980
                 month = (d >> 5) & 0x0F
                 day = d & 0x1F
                 return f"{year:04}-{month:02}-{day:02}"
 
-            def decode_time(t):
+            def decode_time(t: int) -> str:
                 hour = (t >> 11) & 0x1F
                 minute = (t >> 5) & 0x3F
                 second = (t & 0x1F) * 2
                 return f"{hour:02}:{minute:02}:{second:02}"
 
-            def is_lfn_entry(entry):
+            def is_lfn_entry(entry: bytes) -> bool:
                 attr = entry[0x0B]
                 first_byte = entry[0x00]
                 return attr == 0x0F and first_byte != 0x00 and first_byte != 0xE5
@@ -220,8 +377,16 @@ class File:
         return entries
 
     @classmethod
-    def _attributes(cls, attr):
-        flags = set()
+    def _attributes(cls, attr: int) -> Set[str]:
+        """
+        Decode the attribute byte into a set of attribute flags.
+
+        Parameters:
+            attr (int): Attribute byte.
+        Returns:
+            Set[str]: Set of attribute flags.
+        """
+        flags: Set[str] = set()
         if attr & 0x01:
             flags.add("R")  # Read Only
         if attr & 0x02:
