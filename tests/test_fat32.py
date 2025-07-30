@@ -80,6 +80,8 @@ def test_init(drive):
         assert [p.to_dict() for p in disk.partitions] == partition_table
         assert disk.partition.to_dict() == partition
         assert disk.bios_parameter_block.to_dict() == bios_parameter_block
+        assert disk.reads == 2
+        assert disk.writes == 0
 
 
 def test_list_files(drive):
@@ -195,6 +197,8 @@ def test_list_files(drive):
         ]
 
         assert [f.to_dict() for f in disk.list_root_files()] == files
+        assert disk.reads == 2
+        assert disk.writes == 0
 
 
 def test_read_files(drive):
@@ -216,6 +220,8 @@ def test_read_files(drive):
                 strings.append(s)
 
         assert [len(s) for s in strings] == [11, 4096, 52117, 4096]
+        assert disk.reads == 16
+        assert disk.writes == 0
 
 
 def test_append_to_file(drive):
@@ -239,6 +245,8 @@ def test_append_to_file(drive):
                 break
 
         file = disk.append_to_file(to_write, bytearray(bytes("Test Data", "ascii")))
+        assert disk.reads == 2
+        assert disk.writes == 1
 
         s = ""
         for chunk in disk.read_file_in_chunks(file):
@@ -273,6 +281,8 @@ def test_append_multiple_clusters_to_file(drive):
         data = bytearray(random_text, "ascii")
 
         file = disk.append_to_file(to_write, data)
+        assert disk.reads == 11
+        assert disk.writes == 5
 
         output = ""
         for chunk in disk.read_file_in_chunks(file):

@@ -21,6 +21,8 @@ class Disk:
     """Object for intefacing with a FAT32 disk.
 
     Attributes:
+        reads (int): Count of reads per operation.
+        writes (int): Count of writes per operation.
         reader (Callable[[int], bytes]): Function to read 512 bytes at a time from a given drive block.
         writer (Callable[[int, bytearray], Any]): Function to write 512 bytes at a time to a given drive block.
         partitions (List[Partition]): List of detected partitions on the disk.
@@ -41,6 +43,8 @@ class Disk:
         Returns:
             None
         """
+        self.reads = 0
+        self.writes = 0
         self.reader = reader
         self.writer = writer
         self.partitions = []
@@ -58,6 +62,7 @@ class Disk:
         Returns:
             bytearray: The data read from disk.
         """
+        self.reads += 1
         block = offset // LOGICAL_BLOCK_SIZE
         return bytearray(self.reader(block))
 
@@ -71,6 +76,7 @@ class Disk:
         Returns:
             Any: The result of the writer function.
         """
+        self.writes += 1
         block = offset // LOGICAL_BLOCK_SIZE
         return self.writer(block, data)
 
@@ -415,6 +421,8 @@ class Disk:
         Returns:
             None
         """
+        self.reads = 0
+        self.writes = 0
         self.partitions = self._get_partitions()
         self.partition = self._get_largest_non_empty_partition(self.partitions)
         self.bios_parameter_block = self._get_bios_parameter_block()
@@ -431,6 +439,8 @@ class Disk:
         """
         if not self.initialised:
             raise DiskNotInitialised
+        self.reads = 0
+        self.writes = 0
         return self._get_root_directory_entries()
 
     def read_file_in_chunks(self, file: File) -> Generator[bytearray, None, None]:
@@ -444,6 +454,8 @@ class Disk:
         """
         if not self.initialised:
             raise DiskNotInitialised
+        self.reads = 0
+        self.writes = 0
         yield from self._read_file_in_chunks(file)
 
     def append_to_file(self, file: File, data: bytearray) -> File:
@@ -458,6 +470,8 @@ class Disk:
         """
         if not self.initialised:
             raise DiskNotInitialised
+        self.reads = 0
+        self.writes = 0
         return self._append_to_file(file, data)
 
     @classmethod
