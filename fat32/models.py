@@ -58,6 +58,20 @@ class BiosParameterBlock:
         sectors_per_cluster = self.sectors_per_cluster
         return sectors_per_cluster
 
+    def get_fat_table_byte_offset(self):
+        fat_start_sector = self.fat_start_sector
+        bytes_per_sector = self.bytes_per_sector
+        return fat_start_sector * bytes_per_sector
+
+    def get_data_sector_bytes_offset(self):
+        bytes_per_sector = self.bytes_per_sector
+        data_sector_starts = self.data_start_sector
+        return data_sector_starts * bytes_per_sector
+
+    def get_fat_size_in_sectors(self):
+        fat_size_in_sectors = self.fat_size_32
+        return fat_size_in_sectors
+
 
 class Partition:
     def __init__(
@@ -112,6 +126,116 @@ class Partition:
             )
         return parsed_entries
 
+
+class File:
+    def __init__(
+        self,
+        name,
+        attr,
+        attributes,
+        start_cluster,
+        size,
+        created,
+        accessed,
+        written,
+        is_lfn,
+    ):
+        self.name = name
+        self.attr = attr
+        self.attributes = attributes
+        self.start_cluster = start_cluster
+        self.size = size
+        self.created = created
+        self.accessed = accessed
+        self.written = written
+        self.is_lfn = is_lfn
+
+    def to_dict(self):
+        return {
+            "name": self.name,
+            "attr": self.attr,
+            "attributes": self.attributes,
+            "start_cluster": self.start_cluster,
+            "size": self.size,
+            "created": self.created,
+            "accessed": self.accessed,
+            "written": self.written,
+            "is_lfn": self.is_lfn,
+        }
+
     @classmethod
-    def get_largest_non_empty_partition(cls, partitions):
-        return sorted(partitions, key=lambda x: (x.num_sectors * -1, x.start_lba))[0]
+    def parse_directory_entries(cls, data):
+        entries = []
+        for i in range(0, len(data), 32):
+            entry = data[i : i + 32]
+            if entry[0] == 0x00:
+                break  # no more entries
+            if entry[0] == 0xE5:
+                continue  # deleted
+
+            name = entry[0:11].decode("ascii", errors="replace").strip()
+            attr = entry[11]
+            crt_time_tenth = entry[13]
+            crt_time = struct.unpack("<H", entry[14:16])[0]
+            crt_date = struct.unpack("<H", entry[16:18])[0]
+            lst_acc_date = struct.unpack("<H", entry[18:20])[0]
+            fst_clus_hi = struct.unpack("<H", entry[20:22])[0]
+            wrt_time = struct.unpack("<H", entry[22:24])[0]
+            wrt_date = struct.unpack("<H", entry[24:26])[0]
+            fst_clus_lo = struct.unpack("<H", entry[26:28])[0]
+            file_size = struct.unpack("<I", entry[28:32])[0]
+
+            start_cluster = (fst_clus_hi << 16) | fst_clus_lo
+
+            def decode_date(d):
+                year = ((d >> 9) & 0x7F) + 1980
+                month = (d >> 5) & 0x0F
+                day = d & 0x1F
+                return f"{year:04}-{month:02}-{day:02}"
+
+            def decode_time(t):
+                hour = (t >> 11) & 0x1F
+                minute = (t >> 5) & 0x3F
+                second = (t & 0x1F) * 2
+                return f"{hour:02}:{minute:02}:{second:02}"
+
+            def is_lfn_entry(entry):
+                attr = entry[0x0B]
+                first_byte = entry[0x00]
+                return attr == 0x0F and first_byte != 0x00 and first_byte != 0xE5
+
+            entries.append(
+                cls(
+                    name=name,
+                    attr=attr,
+                    attributes=File._attributes(attr),
+                    start_cluster=start_cluster,
+                    size=file_size,
+                    created=f"{decode_date(crt_date)} {decode_time(crt_time)}.{crt_time_tenth}",
+                    accessed=decode_date(lst_acc_date),
+                    written=f"{decode_date(wrt_date)} {decode_time(wrt_time)}",
+                    is_lfn=is_lfn_entry(entry),
+                )
+            )
+        return entries
+
+    @classmethod
+    def _attributes(cls, attr):
+        flags = set()
+        if attr & 0x01:
+            flags.add("R")  # Read Only
+        if attr & 0x02:
+            flags.add("H")  # Hidden
+        if attr & 0x04:
+            flags.add("S")  # System
+        if attr & 0x08:
+            flags.add("V")  # Volume Label
+        if attr & 0x10:
+            flags.add("D")  # Directory
+        if attr & 0x20:
+            flags.add("A")  # Archive
+        if attr & 0x40:
+            flags.add("DV")  # Device
+        if attr & 0x80:
+            flags.add("RS")  # Reserved
+        return flags

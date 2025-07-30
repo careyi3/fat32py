@@ -19,14 +19,14 @@ def main():
         disk.init()
 
         print("\nDisk Partitions:\n")
-        pp(disk.partitions)
+        pp([p.to_dict() for p in disk.partitions])
         print("\nFirst Partition Bios Parameter Block:\n")
-        pp(disk.bios_parameter_block)
+        pp(disk.bios_parameter_block.to_dict())
         print()
 
         for file in disk.list_root_files():
-            if file["size"] > 0 and file["start_cluster"] > 0 and not file["is_lfn"]:
-                print(f"Reading file in chunks: {file['name']}\n")
+            if file.size > 0 and file.start_cluster > 0 and not file.is_lfn:
+                print(f"Reading file in chunks: {file.name}\n")
 
                 for chunk in disk.read_file_in_chunks(file):
                     print(chunk.decode("ascii", errors="replace"))

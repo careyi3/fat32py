@@ -194,7 +194,7 @@ def test_list_files(drive):
             },
         ]
 
-        assert disk.list_root_files() == files
+        assert [f.to_dict() for f in disk.list_root_files()] == files
 
 
 def test_read_files(drive):
@@ -209,7 +209,7 @@ def test_read_files(drive):
 
         strings = []
         for file in disk.list_root_files():
-            if file["size"] > 0 and file["start_cluster"] > 0 and not file["is_lfn"]:
+            if file.size > 0 and file.start_cluster > 0 and not file.is_lfn:
                 s = ""
                 for chunk in disk.read_file_in_chunks(file):
                     s += chunk.decode("ascii", errors="replace")
@@ -234,7 +234,7 @@ def test_append_to_file(drive):
 
         to_write = None
         for file in disk.list_root_files():
-            if file["name"] == "LOG-1":
+            if file.name == "LOG-1":
                 to_write = file
                 break
 
@@ -263,7 +263,7 @@ def test_append_multiple_clusters_to_file(drive):
 
         to_write = None
         for file in disk.list_root_files():
-            if file["name"] == "LOG-1":
+            if file.name == "LOG-1":
                 to_write = file
                 break
 
