@@ -401,11 +401,21 @@ def test_create_file(drive):
         disk = Disk(read_block, write_block)
         disk.init()
 
-        file = disk.create_file("new")
+        new_file = disk.create_file("new")
+        assert disk.reads == 5
+        assert disk.writes == 2
 
-        assert file.start_cluster == 133
+        assert new_file.start_cluster == 133
 
-        # TODO: Test that it actually is written to disk
+        test = None
+        for files in disk.list_root_files():
+            for file in files:
+                if file.name == "new":
+                    test = file
+                    break
+
+        assert test.start_cluster == 133
+        assert test.size == 0
 
 
 def test_create_and_write_file(drive):
@@ -422,9 +432,16 @@ def test_create_and_write_file(drive):
         disk = Disk(read_block, write_block)
         disk.init()
 
-        # TODO: Instead of passing in the in memory record, query for it after each write to see it's actually working
+        disk.create_file("new")
+        assert disk.reads == 5
+        assert disk.writes == 2
 
-        to_write = disk.create_file("new")
+        to_write = None
+        for files in disk.list_root_files():
+            for file in files:
+                if file.name == "new":
+                    to_write = file
+                    break
 
         assert to_write.start_cluster == 133
 

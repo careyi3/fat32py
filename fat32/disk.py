@@ -138,6 +138,28 @@ class Disk:
         ):
             yield File.parse_directory_entries(chunk, data_sector_bytes_offset)
 
+    def _get_root_directory_file_size(self) -> int:
+        """
+        Get root directory file size in bytes.
+
+        Returns:
+            int: Size of the root directory.
+        """
+        bytes_per_cluster = self.bios_parameter_block.get_bytes_per_cluster()
+
+        entries = 0
+        for chunk in self._read_file_in_chunks(
+            # The size param here is a bit of a hack to make the modulus logic under the hood work here.
+            File(None, None, None, 2, bytes_per_cluster, None, None, None, None, 0)
+        ):
+            for i in range(0, len(chunk), 32):
+                entry = chunk[i : i + 32]
+                if entry[0] == 0x00:
+                    break  # no more entries
+                entries += 1
+
+        return entries * 32
+
     def _get_next_cluster(self, cluster: int) -> int:
         """
         Get the next cluster in the chain for a given cluster number.
@@ -437,13 +459,16 @@ class Disk:
 
         return data, written
 
-    def _append_to_file(self, file: File, data: bytearray) -> File:
+    def _append_to_file(
+        self, file: File, data: bytearray, update_file_size: bool
+    ) -> File:
         """
         Append data to the file, allocating clusters as needed.
 
         Parameters:
             file (File): The file object to append to.
             data (bytearray): The data to append.
+            update_file_size (bool): Update the file size of the actual file if true.
         Returns:
             File: The updated file object.
         """
@@ -454,11 +479,14 @@ class Disk:
                 last_cluster = self._get_files_last_cluster(file)
                 self._allocate_next_free_cluster(last_cluster)
 
-        return self._update_file_record_size(file)
+        if update_file_size:
+            return self._update_file_record_size(file)
+        else:
+            return file
 
     def _create_file(self, name: str) -> File:
         start_cluster = self._allocate_first_free_cluster()
-        file = File(
+        new_file = File(
             name,
             32,
             {"A"},
@@ -470,8 +498,18 @@ class Disk:
             False,
             0,
         )
-        # TODO: Actually write the file record here.
-        return file
+        to_write = bytearray(new_file.to_bytes())
+        to_write.append(0x00)
+
+        root_file_size = self._get_root_directory_file_size()
+
+        self._append_to_file(
+            File(None, None, None, 2, root_file_size, None, None, None, None, 0),
+            to_write,
+            False,
+        )
+
+        return new_file
 
     def init(self) -> None:
         """
@@ -533,7 +571,7 @@ class Disk:
             raise DiskNotInitialised
         self.reads = 0
         self.writes = 0
-        return self._append_to_file(file, data)
+        return self._append_to_file(file, data, True)
 
     def create_file(self, name: str) -> File:
         """
