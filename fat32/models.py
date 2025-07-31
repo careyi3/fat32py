@@ -312,6 +312,61 @@ class File:
             "is_lfn": self.is_lfn,
         }
 
+    def to_bytes(self) -> bytes:
+        """
+        Serialize the File object to a 32-byte FAT32 directory entry.
+
+        Returns:
+            bytes: The raw 32-byte directory entry.
+        """
+        name_bytes = self.name.encode("ascii", errors="replace")[:11]
+        name_bytes = name_bytes.ljust(11, b" ")
+        attr_byte = self.attr
+        nt_byte = 0
+        crt_time_tenth = 0
+        try:
+            date_part, time_part = self.created.split(" ")
+            year, month, day = [int(x) for x in date_part.split("-")]
+            hour, minute, second = [int(x) for x in time_part.split(":")[:3]]
+            crt_date = ((year - 1980) << 9) | (month << 5) | day
+            crt_time = (hour << 11) | (minute << 5) | (second // 2)
+        except Exception:
+            crt_date = 0
+            crt_time = 0
+        try:
+            year, month, day = [int(x) for x in self.accessed.split("-")]
+            lst_acc_date = ((year - 1980) << 9) | (month << 5) | day
+        except Exception:
+            lst_acc_date = 0
+        fst_clus_hi = (self.start_cluster >> 16) & 0xFFFF
+        try:
+            date_part, time_part = self.written.split(" ")
+            year, month, day = [int(x) for x in date_part.split("-")]
+            hour, minute, second = [int(x) for x in time_part.split(":")[:3]]
+            wrt_date = ((year - 1980) << 9) | (month << 5) | day
+            wrt_time = (hour << 11) | (minute << 5) | (second // 2)
+        except Exception:
+            wrt_date = 0
+            wrt_time = 0
+        fst_clus_lo = self.start_cluster & 0xFFFF
+        file_size = self.size
+        entry = struct.pack(
+            "<11sBBBHHHHHHHI",
+            name_bytes,
+            attr_byte,
+            nt_byte,
+            crt_time_tenth,
+            crt_time,
+            crt_date,
+            lst_acc_date,
+            fst_clus_hi,
+            wrt_time,
+            wrt_date,
+            fst_clus_lo,
+            file_size,
+        )
+        return entry
+
     @classmethod
     def parse_directory_entries(cls, data: bytes) -> List["File"]:
         """
@@ -368,7 +423,7 @@ class File:
                     attributes=File._attributes(attr),
                     start_cluster=start_cluster,
                     size=file_size,
-                    created=f"{decode_date(crt_date)} {decode_time(crt_time)}.{crt_time_tenth}",
+                    created=f"{decode_date(crt_date)} {decode_time(crt_time)}",
                     accessed=decode_date(lst_acc_date),
                     written=f"{decode_date(wrt_date)} {decode_time(wrt_time)}",
                     is_lfn=is_lfn_entry(entry),

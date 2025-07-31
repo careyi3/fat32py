@@ -1,7 +1,7 @@
 import pytest
 import random
 import string
-from fat32 import Disk
+from fat32 import Disk, File
 
 
 def test_init(drive):
@@ -101,7 +101,7 @@ def test_list_files(drive):
                 "attributes": {"V", "A"},
                 "start_cluster": 0,
                 "size": 0,
-                "created": "1980-00-00 00:00:00.0",
+                "created": "1980-00-00 00:00:00",
                 "accessed": "1980-00-00",
                 "written": "2025-07-28 10:11:02",
                 "is_lfn": False,
@@ -112,7 +112,7 @@ def test_list_files(drive):
                 "attributes": {"R", "S", "H", "V"},
                 "start_cluster": 7536640,
                 "size": 4294967295,
-                "created": "1980-03-14 00:03:10.218",
+                "created": "1980-03-14 00:03:10",
                 "accessed": "1980-03-20",
                 "written": "1980-00-00 00:03:08",
                 "is_lfn": True,
@@ -123,7 +123,7 @@ def test_list_files(drive):
                 "attributes": {"H", "D"},
                 "start_cluster": 3,
                 "size": 0,
-                "created": "2025-07-28 09:25:12.144",
+                "created": "2025-07-28 09:25:12",
                 "accessed": "2025-07-28",
                 "written": "2025-07-28 09:25:12",
                 "is_lfn": False,
@@ -134,7 +134,7 @@ def test_list_files(drive):
                 "attributes": {"A"},
                 "start_cluster": 21,
                 "size": 11,
-                "created": "2025-07-14 10:42:14.0",
+                "created": "2025-07-14 10:42:14",
                 "accessed": "2025-07-28",
                 "written": "2025-07-16 16:32:46",
                 "is_lfn": False,
@@ -145,7 +145,7 @@ def test_list_files(drive):
                 "attributes": {"R", "S", "H", "V"},
                 "start_cluster": 4294901760,
                 "size": 4294967295,
-                "created": "1980-01-17 00:01:26.234",
+                "created": "1980-01-17 00:01:26",
                 "accessed": "1980-00-00",
                 "written": "2107-15-31 31:63:62",
                 "is_lfn": True,
@@ -156,7 +156,7 @@ def test_list_files(drive):
                 "attributes": {"H", "A"},
                 "start_cluster": 22,
                 "size": 4096,
-                "created": "2025-07-28 10:11:02.35",
+                "created": "2025-07-28 10:11:02",
                 "accessed": "2025-07-28",
                 "written": "2025-07-28 10:11:02",
                 "is_lfn": False,
@@ -167,7 +167,7 @@ def test_list_files(drive):
                 "attributes": {"A"},
                 "start_cluster": 30,
                 "size": 52117,
-                "created": "2025-07-14 10:42:22.0",
+                "created": "2025-07-14 10:42:22",
                 "accessed": "2025-07-28",
                 "written": "2025-07-22 08:44:34",
                 "is_lfn": False,
@@ -178,7 +178,7 @@ def test_list_files(drive):
                 "attributes": {"R", "S", "H", "V"},
                 "start_cluster": 4294901760,
                 "size": 4294967295,
-                "created": "1980-01-18 00:01:26.218",
+                "created": "1980-01-18 00:01:26",
                 "accessed": "1980-00-00",
                 "written": "2107-15-31 31:63:62",
                 "is_lfn": True,
@@ -189,7 +189,7 @@ def test_list_files(drive):
                 "attributes": {"H", "A"},
                 "start_cluster": 132,
                 "size": 4096,
-                "created": "2025-07-28 10:11:02.41",
+                "created": "2025-07-28 10:11:02",
                 "accessed": "2025-07-28",
                 "written": "2025-07-28 10:11:02",
                 "is_lfn": False,
@@ -289,3 +289,39 @@ def test_append_multiple_clusters_to_file(drive):
             output += chunk.decode("ascii", errors="replace")
 
         assert output == f"log line 1\n{random_text}"
+
+
+def test_file_to_bytes():
+    file_dict = {
+        "accessed": "2025-07-28",
+        "attr": 1,
+        "attributes": {
+            "R",
+        },
+        "created": "2025-07-28 10:11:02",
+        "is_lfn": False,
+        "name": "File 1",
+        "size": 512,
+        "start_cluster": 2,
+        "written": "2025-07-28 10:11:02",
+    }
+
+    file = File(
+        "File 1",
+        1,
+        {"R"},
+        2,
+        512,
+        "2025-07-28 10:11:02",
+        "2025-07-28",
+        "2025-07-28 10:11:02",
+        False,
+    )
+
+    assert file.to_dict() == file_dict
+
+    file_bytes = file.to_bytes()
+
+    parsed_file = file.parse_directory_entries(file_bytes)[0]
+
+    assert parsed_file.to_dict() == file_dict
