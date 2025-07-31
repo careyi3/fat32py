@@ -24,12 +24,13 @@ def main():
         pp(disk.bios_parameter_block.to_dict())
         print()
 
-        for file in disk.list_root_files():
-            if file.size > 0 and file.start_cluster > 0 and not file.is_lfn:
-                print(f"Reading file in chunks: {file.name}\n")
+        for files in disk.list_root_files():
+            for file in files:
+                if file.size > 0 and file.start_cluster > 0 and not file.is_lfn:
+                    print(f"Reading file in chunks: {file.name}\n")
 
-                for chunk in disk.read_file_in_chunks(file):
-                    print(chunk.decode("ascii", errors="replace"))
+                    for chunk in disk.read_file_in_chunks(file):
+                        print(chunk.decode("ascii", errors="replace"))
 
 
 if __name__ == "__main__":

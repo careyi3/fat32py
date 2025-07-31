@@ -17,6 +17,18 @@ class DiskNotInitialised(Exception):
         super().__init__(self.message)
 
 
+class BlockAddressError(Exception):
+    """Exception raised when attempting to access an invalid block address.
+
+    Attributes:
+        message -- explanation of the error
+    """
+
+    def __init__(self, message: str) -> None:
+        self.message = message
+        super().__init__(self.message)
+
+
 class Disk:
     """Object for intefacing with a FAT32 disk.
 
@@ -64,6 +76,10 @@ class Disk:
         """
         self.reads += 1
         block = offset // LOGICAL_BLOCK_SIZE
+        if offset % LOGICAL_BLOCK_SIZE != 0:
+            raise BlockAddressError(
+                f"Attempting to read from byte address: {offset}, which is not evenly divisible by the logical block size: {LOGICAL_BLOCK_SIZE}"
+            )
         return bytearray(self.reader(block))
 
     def _write_disk(self, offset: int, data: bytearray) -> Any:
@@ -78,6 +94,10 @@ class Disk:
         """
         self.writes += 1
         block = offset // LOGICAL_BLOCK_SIZE
+        if offset % LOGICAL_BLOCK_SIZE != 0:
+            raise BlockAddressError(
+                f"Attempting to write to byte address: {offset}, which is not evenly divisible by the logical block size: {LOGICAL_BLOCK_SIZE}"
+            )
         return self.writer(block, data)
 
     def _get_partitions(self) -> List[Partition]:
@@ -101,23 +121,22 @@ class Disk:
         data = self._read_disk(partition_offset)
         return BiosParameterBlock(data)
 
-    def _get_root_directory_entries(self) -> List[File]:
+    def _get_root_directory_entries(self) -> Generator[List[File], None, None]:
         """
         Get all root directory entries as File objects.
 
-        Returns:
+        Yields:
             List[File]: List of File objects in the root directory.
         """
         bytes_per_cluster = self.bios_parameter_block.get_bytes_per_cluster()
-
-        data = bytearray()
+        data_sector_bytes_offset = (
+            self.bios_parameter_block.get_data_sector_bytes_offset()
+        )
         for chunk in self._read_file_in_chunks(
-            # TODO: Figure out how to get the actual size of the directory "file"
-            File(None, None, None, 2, bytes_per_cluster, None, None, None, None)
+            # The size param here is a bit of a hack to make the modulus logic under the hood work here.
+            File(None, None, None, 2, bytes_per_cluster, None, None, None, None, 0)
         ):
-            data.extend(chunk)
-
-        return File.parse_directory_entries(data)
+            yield File.parse_directory_entries(chunk, data_sector_bytes_offset)
 
     def _get_next_cluster(self, cluster: int) -> int:
         """
@@ -272,6 +291,18 @@ class Disk:
 
         return (data, sector_num, idx)
 
+    def _allocate_first_free_cluster(self) -> int:
+        """
+        Allocate the first free cluster and update the FAT table.
+
+        Returns:
+            int: new cluster address
+        """
+        data, sector_num, idx = self._find_next_empty_fat_entry(2)
+        entry = (0x0FFFFFF8 & 0x0FFFFFFF).to_bytes(4, byteorder="little")
+        self._write_fat_entry(data, sector_num, idx, entry)
+        return ((sector_num * LOGICAL_BLOCK_SIZE) + idx) // 4
+
     def _allocate_next_free_cluster(self, last_cluster: int) -> None:
         """
         Allocate the next free cluster and update the FAT table.
@@ -321,18 +352,31 @@ class Disk:
         # TODO: Make this actually create the file record
         return file
 
-    def _update_file_record(self, file: File, num_bytes_written: int) -> File:
+    def _update_file_record_size(self, file: File) -> File:
         """
-        Update the file record with the number of bytes written (stub).
+        Update the file record with the number of bytes written.
 
         Parameters:
             file (File): The file object to update.
-            num_bytes_written (int): Number of bytes written to the file.
         Returns:
             File: The updated file object.
         """
-        # TODO: Make this actually update the file record
-        file.size = file.size + num_bytes_written
+
+        partition_offset = self.partition.get_partition_offset()
+        sector_offset = file.byte_offset // LOGICAL_BLOCK_SIZE
+        sector_idx = file.byte_offset % LOGICAL_BLOCK_SIZE
+
+        block = self._read_disk(partition_offset + (sector_offset * LOGICAL_BLOCK_SIZE))
+
+        file_bytes = file.to_bytes()
+
+        block[sector_idx : sector_idx + len(file_bytes)] = file_bytes
+
+        self._write_disk(
+            partition_offset + (sector_offset * LOGICAL_BLOCK_SIZE),
+            block,
+        )
+
         return file
 
     def _write_to_last_cluster(
@@ -410,6 +454,23 @@ class Disk:
                 last_cluster = self._get_files_last_cluster(file)
                 self._allocate_next_free_cluster(last_cluster)
 
+        return self._update_file_record_size(file)
+
+    def _create_file(self, name: str) -> File:
+        start_cluster = self._allocate_first_free_cluster()
+        file = File(
+            name,
+            32,
+            {"A"},
+            start_cluster,
+            0,
+            "1980-01-01 00:00:00",
+            "1980-01-01",
+            "1980-01-01 00:00:00",
+            False,
+            0,
+        )
+        # TODO: Actually write the file record here.
         return file
 
     def init(self) -> None:
@@ -428,20 +489,20 @@ class Disk:
         self.bios_parameter_block = self._get_bios_parameter_block()
         self.initialised = True
 
-    def list_root_files(self) -> List[File]:
+    def list_root_files(self) -> Generator[List[File], None, None]:
         """
         List all files in the root directory.
 
         Parameters:
             self (Disk): The disk object instance.
-        Returns:
+        Yields:
             List[File]: List of File objects in the root directory.
         """
         if not self.initialised:
             raise DiskNotInitialised
         self.reads = 0
         self.writes = 0
-        return self._get_root_directory_entries()
+        yield from self._get_root_directory_entries()
 
     def read_file_in_chunks(self, file: File) -> Generator[bytearray, None, None]:
         """
@@ -473,6 +534,21 @@ class Disk:
         self.reads = 0
         self.writes = 0
         return self._append_to_file(file, data)
+
+    def create_file(self, name: str) -> File:
+        """
+        Create a file.
+
+        Parameters:
+            name (str): File name.
+        Returns:
+            File: The created file object.
+        """
+        if not self.initialised:
+            raise DiskNotInitialised
+        self.reads = 0
+        self.writes = 0
+        return self._create_file(name)
 
     @classmethod
     def _get_largest_non_empty_partition(cls, partitions: List[Partition]) -> Partition:

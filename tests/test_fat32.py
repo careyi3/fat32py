@@ -96,107 +96,151 @@ def test_list_files(drive):
 
         files = [
             {
-                "name": "DRIVE",
+                "accessed": "1980-00-00",
                 "attr": 40,
-                "attributes": {"V", "A"},
-                "start_cluster": 0,
-                "size": 0,
+                "attributes": {
+                    "A",
+                    "V",
+                },
+                "byte_offset": 1048576,
                 "created": "1980-00-00 00:00:00",
-                "accessed": "1980-00-00",
-                "written": "2025-07-28 10:11:02",
                 "is_lfn": False,
-            },
-            {
-                "name": "A.\x00f\x00s\x00e\x00v\x00",
-                "attr": 15,
-                "attributes": {"R", "S", "H", "V"},
-                "start_cluster": 7536640,
-                "size": 4294967295,
-                "created": "1980-03-14 00:03:10",
-                "accessed": "1980-03-20",
-                "written": "1980-00-00 00:03:08",
-                "is_lfn": True,
-            },
-            {
-                "name": "FSEVEN~1",
-                "attr": 18,
-                "attributes": {"H", "D"},
-                "start_cluster": 3,
+                "name": "DRIVE",
                 "size": 0,
+                "start_cluster": 0,
+                "written": "2025-07-28 10:11:02",
+            },
+            {
+                "accessed": "1980-03-20",
+                "attr": 15,
+                "attributes": {
+                    "H",
+                    "R",
+                    "S",
+                    "V",
+                },
+                "byte_offset": 1048608,
+                "created": "1980-03-14 00:03:10",
+                "is_lfn": True,
+                "name": "A.\x00f\x00s\x00e\x00v\x00",
+                "size": 4294967295,
+                "start_cluster": 7536640,
+                "written": "1980-00-00 00:03:08",
+            },
+            {
+                "accessed": "2025-07-28",
+                "attr": 18,
+                "attributes": {
+                    "D",
+                    "H",
+                },
+                "byte_offset": 1048640,
                 "created": "2025-07-28 09:25:12",
-                "accessed": "2025-07-28",
+                "is_lfn": False,
+                "name": "FSEVEN~1",
+                "size": 0,
+                "start_cluster": 3,
                 "written": "2025-07-28 09:25:12",
-                "is_lfn": False,
             },
             {
-                "name": "LOG-1",
+                "accessed": "2025-07-28",
                 "attr": 32,
-                "attributes": {"A"},
-                "start_cluster": 21,
-                "size": 11,
+                "attributes": {
+                    "A",
+                },
+                "byte_offset": 1048672,
                 "created": "2025-07-14 10:42:14",
-                "accessed": "2025-07-28",
+                "is_lfn": False,
+                "name": "LOG-1",
+                "size": 11,
+                "start_cluster": 21,
                 "written": "2025-07-16 16:32:46",
-                "is_lfn": False,
             },
             {
-                "name": "A.\x00_\x00L\x00O\x00G\x00",
+                "accessed": "1980-00-00",
                 "attr": 15,
-                "attributes": {"R", "S", "H", "V"},
-                "start_cluster": 4294901760,
-                "size": 4294967295,
+                "attributes": {
+                    "H",
+                    "R",
+                    "S",
+                    "V",
+                },
+                "byte_offset": 1048704,
                 "created": "1980-01-17 00:01:26",
-                "accessed": "1980-00-00",
-                "written": "2107-15-31 31:63:62",
                 "is_lfn": True,
-            },
-            {
-                "name": "_LOG-~3",
-                "attr": 34,
-                "attributes": {"H", "A"},
-                "start_cluster": 22,
-                "size": 4096,
-                "created": "2025-07-28 10:11:02",
-                "accessed": "2025-07-28",
-                "written": "2025-07-28 10:11:02",
-                "is_lfn": False,
-            },
-            {
-                "name": "LOG-2",
-                "attr": 32,
-                "attributes": {"A"},
-                "start_cluster": 30,
-                "size": 52117,
-                "created": "2025-07-14 10:42:22",
-                "accessed": "2025-07-28",
-                "written": "2025-07-22 08:44:34",
-                "is_lfn": False,
-            },
-            {
                 "name": "A.\x00_\x00L\x00O\x00G\x00",
-                "attr": 15,
-                "attributes": {"R", "S", "H", "V"},
-                "start_cluster": 4294901760,
                 "size": 4294967295,
-                "created": "1980-01-18 00:01:26",
-                "accessed": "1980-00-00",
+                "start_cluster": 4294901760,
                 "written": "2107-15-31 31:63:62",
-                "is_lfn": True,
             },
             {
-                "name": "_LOG-~4",
-                "attr": 34,
-                "attributes": {"H", "A"},
-                "start_cluster": 132,
-                "size": 4096,
-                "created": "2025-07-28 10:11:02",
                 "accessed": "2025-07-28",
-                "written": "2025-07-28 10:11:02",
+                "attr": 34,
+                "attributes": {
+                    "A",
+                    "H",
+                },
+                "byte_offset": 1048736,
+                "created": "2025-07-28 10:11:02",
                 "is_lfn": False,
+                "name": "_LOG-~3",
+                "size": 4096,
+                "start_cluster": 22,
+                "written": "2025-07-28 10:11:02",
+            },
+            {
+                "accessed": "2025-07-28",
+                "attr": 32,
+                "attributes": {
+                    "A",
+                },
+                "byte_offset": 1048768,
+                "created": "2025-07-14 10:42:22",
+                "is_lfn": False,
+                "name": "LOG-2",
+                "size": 52117,
+                "start_cluster": 30,
+                "written": "2025-07-22 08:44:34",
+            },
+            {
+                "accessed": "1980-00-00",
+                "attr": 15,
+                "attributes": {
+                    "H",
+                    "R",
+                    "S",
+                    "V",
+                },
+                "byte_offset": 1048800,
+                "created": "1980-01-18 00:01:26",
+                "is_lfn": True,
+                "name": "A.\x00_\x00L\x00O\x00G\x00",
+                "size": 4294967295,
+                "start_cluster": 4294901760,
+                "written": "2107-15-31 31:63:62",
+            },
+            {
+                "accessed": "2025-07-28",
+                "attr": 34,
+                "attributes": {
+                    "A",
+                    "H",
+                },
+                "byte_offset": 1048832,
+                "created": "2025-07-28 10:11:02",
+                "is_lfn": False,
+                "name": "_LOG-~4",
+                "size": 4096,
+                "start_cluster": 132,
+                "written": "2025-07-28 10:11:02",
             },
         ]
 
-        assert [f.to_dict() for f in disk.list_root_files()] == files
+        all_files = []
+        for fs in disk.list_root_files():
+            all_files += [f.to_dict() for f in fs]
+
+        assert all_files == files
         assert disk.reads == 2
         assert disk.writes == 0
 
@@ -212,12 +256,13 @@ def test_read_files(drive):
         disk.init()
 
         strings = []
-        for file in disk.list_root_files():
-            if file.size > 0 and file.start_cluster > 0 and not file.is_lfn:
-                s = ""
-                for chunk in disk.read_file_in_chunks(file):
-                    s += chunk.decode("ascii", errors="replace")
-                strings.append(s)
+        for files in disk.list_root_files():
+            for file in files:
+                if file.size > 0 and file.start_cluster > 0 and not file.is_lfn:
+                    s = ""
+                    for chunk in disk.read_file_in_chunks(file):
+                        s += chunk.decode("ascii", errors="replace")
+                    strings.append(s)
 
         assert [len(s) for s in strings] == [11, 4096, 52117, 4096]
         assert disk.reads == 16
@@ -239,17 +284,29 @@ def test_append_to_file(drive):
         disk.init()
 
         to_write = None
-        for file in disk.list_root_files():
-            if file.name == "LOG-1":
-                to_write = file
-                break
+        for files in disk.list_root_files():
+            for file in files:
+                if file.name == "LOG-1":
+                    to_write = file
+                    break
 
-        file = disk.append_to_file(to_write, bytearray(bytes("Test Data", "ascii")))
-        assert disk.reads == 2
-        assert disk.writes == 1
+        updated_file = disk.append_to_file(
+            to_write, bytearray(bytes("Test Data", "ascii"))
+        )
+        assert disk.reads == 3
+        assert disk.writes == 2
+
+        test = None
+        for files in disk.list_root_files():
+            for file in files:
+                if file.name == "LOG-1":
+                    test = file
+                    break
+
+        assert updated_file.size == test.size
 
         s = ""
-        for chunk in disk.read_file_in_chunks(file):
+        for chunk in disk.read_file_in_chunks(test):
             s += chunk.decode("ascii", errors="replace")
 
         assert s == "log line 1\nTest Data"
@@ -270,10 +327,11 @@ def test_append_multiple_clusters_to_file(drive):
         disk.init()
 
         to_write = None
-        for file in disk.list_root_files():
-            if file.name == "LOG-1":
-                to_write = file
-                break
+        for files in disk.list_root_files():
+            for file in files:
+                if file.name == "LOG-1":
+                    to_write = file
+                    break
 
         random_text = "".join(
             random.choices(string.ascii_letters + string.digits, k=1000)
@@ -281,8 +339,8 @@ def test_append_multiple_clusters_to_file(drive):
         data = bytearray(random_text, "ascii")
 
         file = disk.append_to_file(to_write, data)
-        assert disk.reads == 11
-        assert disk.writes == 5
+        assert disk.reads == 12
+        assert disk.writes == 6
 
         output = ""
         for chunk in disk.read_file_in_chunks(file):
@@ -304,6 +362,7 @@ def test_file_to_bytes():
         "size": 512,
         "start_cluster": 2,
         "written": "2025-07-28 10:11:02",
+        "byte_offset": 1000,
     }
 
     file = File(
@@ -316,12 +375,65 @@ def test_file_to_bytes():
         "2025-07-28",
         "2025-07-28 10:11:02",
         False,
+        1000,
     )
 
     assert file.to_dict() == file_dict
 
     file_bytes = file.to_bytes()
 
-    parsed_file = file.parse_directory_entries(file_bytes)[0]
+    parsed_file = file.parse_directory_entries(file_bytes, 1000)[0]
 
     assert parsed_file.to_dict() == file_dict
+
+
+def test_create_file(drive):
+    with open(drive, "rb+") as f:
+
+        def read_block(logical_block_address):
+            f.seek(logical_block_address * 512)
+            return f.read(512)
+
+        def write_block(logical_block_address, data):
+            f.seek(logical_block_address * 512)
+            return f.write(data)
+
+        disk = Disk(read_block, write_block)
+        disk.init()
+
+        file = disk.create_file("new")
+
+        assert file.start_cluster == 133
+
+        # TODO: Test that it actually is written to disk
+
+
+def test_create_and_write_file(drive):
+    with open(drive, "rb+") as f:
+
+        def read_block(logical_block_address):
+            f.seek(logical_block_address * 512)
+            return f.read(512)
+
+        def write_block(logical_block_address, data):
+            f.seek(logical_block_address * 512)
+            return f.write(data)
+
+        disk = Disk(read_block, write_block)
+        disk.init()
+
+        # TODO: Instead of passing in the in memory record, query for it after each write to see it's actually working
+
+        to_write = disk.create_file("new")
+
+        assert to_write.start_cluster == 133
+
+        disk.append_to_file(to_write, bytearray(bytes("Test Data", "ascii")))
+        assert disk.reads == 3
+        assert disk.writes == 2
+
+        s = ""
+        for chunk in disk.read_file_in_chunks(to_write):
+            s += chunk.decode("ascii", errors="replace")
+
+        assert s == "Test Data"

@@ -253,6 +253,7 @@ class File:
         accessed (str): Last access date.
         written (str): Last write timestamp.
         is_lfn (bool): Whether entry is a long file name.
+        byte_offset (int): Start position of the file record in bytes from the start of the data sector.
     """
 
     def __init__(
@@ -266,6 +267,7 @@ class File:
         accessed: str,
         written: str,
         is_lfn: bool,
+        byte_offset: int,
     ) -> None:
         """
         Initialize a File object.
@@ -292,6 +294,7 @@ class File:
         self.accessed = accessed
         self.written = written
         self.is_lfn = is_lfn
+        self.byte_offset = byte_offset
 
     def to_dict(self) -> Dict[str, Any]:
         """
@@ -310,6 +313,7 @@ class File:
             "accessed": self.accessed,
             "written": self.written,
             "is_lfn": self.is_lfn,
+            "byte_offset": self.byte_offset,
         }
 
     def to_bytes(self) -> bytes:
@@ -368,12 +372,13 @@ class File:
         return entry
 
     @classmethod
-    def parse_directory_entries(cls, data: bytes) -> List["File"]:
+    def parse_directory_entries(cls, data: bytes, sector_offset: int) -> List["File"]:
         """
         Parse directory entries from raw directory data.
 
         Parameters:
             data (bytes): Raw directory data.
+            sector_offset (int): Sector offset in bytes from start of data sector
         Returns:
             List[File]: List of File objects.
         """
@@ -427,6 +432,7 @@ class File:
                     accessed=decode_date(lst_acc_date),
                     written=f"{decode_date(wrt_date)} {decode_time(wrt_time)}",
                     is_lfn=is_lfn_entry(entry),
+                    byte_offset=sector_offset + i,
                 )
             )
         return entries
