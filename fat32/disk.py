@@ -156,10 +156,8 @@ class Disk:
         Yields:
             List[File]: List of File objects in the root directory.
         """
-        data_sector_bytes_offset = (
-            self.bios_parameter_block.get_data_sector_bytes_offset()
-        )
-        for chunk in self._read_file_in_chunks(
+
+        for chunk, data_sector_bytes_offset in self._read_file_in_chunks(
             self._get_root_dir_fake_file_record(None)
         ):
             yield File.parse_directory_entries(chunk, data_sector_bytes_offset)
@@ -173,13 +171,13 @@ class Disk:
         """
         bytes_per_cluster = self.bios_parameter_block.get_bytes_per_cluster()
         entries = 0
-        for chunk in self._read_file_in_chunks(
+        for chunk, _ in self._read_file_in_chunks(
             self._get_root_dir_fake_file_record(bytes_per_cluster)
         ):
             for i in range(0, len(chunk), 32):
                 entry = chunk[i : i + 32]
-                if entry[0] == 0x00:
-                    break  # no more entries
+                if entry[0] == 0x00:  # end of file marker
+                    return entries * 32
                 entries += 1
 
         return entries * 32
@@ -206,14 +204,16 @@ class Disk:
         data = data[start : start + 4]
         return struct.unpack("<I", data)[0] & 0x0FFFFFFF
 
-    def _read_file_in_chunks(self, file: File) -> Generator[bytearray, None, None]:
+    def _read_file_in_chunks(
+        self, file: File
+    ) -> Generator[Tuple[bytearray, int], None, None]:
         """
         Yield file data in chunks (by cluster) for the given File object.
 
         Parameters:
             file (File): The file to read.
         Yields:
-            bytearray: Chunks of file data.
+            (bytearray, int): (Chunks of file data., Data sector bytes offset)
         """
         cluster = file.start_cluster
         partition_offset = self.partition.get_partition_offset()
@@ -246,7 +246,7 @@ class Disk:
                     data = data[
                         0 : file.size % LOGICAL_BLOCK_SIZE or LOGICAL_BLOCK_SIZE
                     ]
-                yield data
+                yield (data, offset + (sec * LOGICAL_BLOCK_SIZE))
 
             i += 1
             cluster = next_cluster
@@ -514,8 +514,27 @@ class Disk:
         else:
             return file
 
-    def _create_file(self, name: str):
+    def _create_file(self, name: str) -> File:
+        """
+        Creates empty file with name.
+
+        Parameters:
+            name (str): File name.
+        Returns:
+            File: The new file object.
+        """
         start_cluster = self._allocate_first_free_cluster()
+
+        data_sector_bytes_offset = (
+            self.bios_parameter_block.get_data_sector_bytes_offset()
+        )
+        bytes_per_cluster = self.bios_parameter_block.get_bytes_per_cluster()
+        root_dir_first_cluster = self.bios_parameter_block.get_root_dir_first_cluster()
+
+        offset = data_sector_bytes_offset + (
+            (start_cluster - root_dir_first_cluster) * bytes_per_cluster
+        )
+
         new_file = File(
             name,
             32,
@@ -526,7 +545,7 @@ class Disk:
             "1980-01-01",
             "1980-01-01 00:00:00",
             False,
-            0,
+            offset,
         )
         to_write = bytearray(new_file.to_bytes())
         to_write.append(0x00)
@@ -536,6 +555,8 @@ class Disk:
             to_write,
             False,
         )
+
+        return new_file
 
     def init(self) -> None:
         """
@@ -581,7 +602,8 @@ class Disk:
             raise DiskNotInitialised
         self.reads = 0
         self.writes = 0
-        yield from self._read_file_in_chunks(file)
+        for chunk, _ in self._read_file_in_chunks(file):
+            yield chunk
 
     def append_to_file(self, file: File, data: bytearray) -> File:
         """
@@ -612,7 +634,7 @@ class Disk:
             raise DiskNotInitialised
         self.reads = 0
         self.writes = 0
-        self._create_file(name)
+        return self._create_file(name)
 
     @classmethod
     def _get_largest_non_empty_partition(cls, partitions: List[Partition]) -> Partition:
