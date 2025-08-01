@@ -121,6 +121,34 @@ class Disk:
         data = self._read_disk(partition_offset)
         return BiosParameterBlock(data)
 
+    def _get_root_dir_fake_file_record(self, file_size: int) -> File:
+        """
+        Returns an instance of file that is a fake representation of the root file directory.
+
+        Parameters:
+            file_size (int): Hack to bootstrap the process of getting the actual file size, can be None.
+
+        Returns:
+            File: Fake file record for the root directory.
+        """
+        if file_size is None:
+            root_dir_file_size = self._get_root_directory_file_size()
+        else:
+            root_dir_file_size = file_size
+        root_dir_first_cluster = self.bios_parameter_block.get_root_dir_first_cluster()
+        return File(
+            None,
+            None,
+            None,
+            root_dir_first_cluster,
+            root_dir_file_size,
+            None,
+            None,
+            None,
+            None,
+            0,
+        )
+
     def _get_root_directory_entries(self) -> Generator[List[File], None, None]:
         """
         Get all root directory entries as File objects.
@@ -128,13 +156,11 @@ class Disk:
         Yields:
             List[File]: List of File objects in the root directory.
         """
-        bytes_per_cluster = self.bios_parameter_block.get_bytes_per_cluster()
         data_sector_bytes_offset = (
             self.bios_parameter_block.get_data_sector_bytes_offset()
         )
         for chunk in self._read_file_in_chunks(
-            # The size param here is a bit of a hack to make the modulus logic under the hood work here.
-            File(None, None, None, 2, bytes_per_cluster, None, None, None, None, 0)
+            self._get_root_dir_fake_file_record(None)
         ):
             yield File.parse_directory_entries(chunk, data_sector_bytes_offset)
 
@@ -146,11 +172,9 @@ class Disk:
             int: Size of the root directory.
         """
         bytes_per_cluster = self.bios_parameter_block.get_bytes_per_cluster()
-
         entries = 0
         for chunk in self._read_file_in_chunks(
-            # The size param here is a bit of a hack to make the modulus logic under the hood work here.
-            File(None, None, None, 2, bytes_per_cluster, None, None, None, None, 0)
+            self._get_root_dir_fake_file_record(bytes_per_cluster)
         ):
             for i in range(0, len(chunk), 32):
                 entry = chunk[i : i + 32]
@@ -197,10 +221,13 @@ class Disk:
             self.bios_parameter_block.get_data_sector_bytes_offset()
         )
         bytes_per_cluster = self.bios_parameter_block.get_bytes_per_cluster()
+        root_dir_first_cluster = self.bios_parameter_block.get_root_dir_first_cluster()
 
         i = 1
         while cluster < 0x0FFFFFF8:
-            offset = data_sector_bytes_offset + ((cluster - 2) * bytes_per_cluster)
+            offset = data_sector_bytes_offset + (
+                (cluster - root_dir_first_cluster) * bytes_per_cluster
+            )
 
             sectors_to_read = self.bios_parameter_block.get_sectors_per_cluster()
             if file.size < (i * bytes_per_cluster):
@@ -418,6 +445,7 @@ class Disk:
         data_sector_bytes_offset = (
             self.bios_parameter_block.get_data_sector_bytes_offset()
         )
+        root_dir_first_cluster = self.bios_parameter_block.get_root_dir_first_cluster()
         file_size = file.size
         free_bytes_in_cluster = bytes_per_cluster - (file_size % bytes_per_cluster)
         last_cluster = self._get_files_last_cluster(file)
@@ -425,7 +453,9 @@ class Disk:
         cluster_used_bytes = file_size % bytes_per_cluster
         used_sectors = cluster_used_bytes // LOGICAL_BLOCK_SIZE
         eof_index = cluster_used_bytes % LOGICAL_BLOCK_SIZE
-        offset = data_sector_bytes_offset + ((last_cluster - 2) * bytes_per_cluster)
+        offset = data_sector_bytes_offset + (
+            (last_cluster - root_dir_first_cluster) * bytes_per_cluster
+        )
         block = self._read_disk(
             partition_offset + offset + (used_sectors * LOGICAL_BLOCK_SIZE)
         )
@@ -501,10 +531,8 @@ class Disk:
         to_write = bytearray(new_file.to_bytes())
         to_write.append(0x00)
 
-        root_file_size = self._get_root_directory_file_size()
-
         self._append_to_file(
-            File(None, None, None, 2, root_file_size, None, None, None, None, 0),
+            self._get_root_dir_fake_file_record(None),
             to_write,
             False,
         )

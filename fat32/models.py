@@ -133,6 +133,15 @@ class BiosParameterBlock:
         """
         return self.fat_size_32
 
+    def get_root_dir_first_cluster(self) -> int:
+        """
+        Get the cluster id for the root directory
+
+        Returns:
+            int: Cluster number
+        """
+        return self.root_dir_first_cluster
+
 
 class Partition:
     """

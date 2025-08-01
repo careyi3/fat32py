@@ -241,7 +241,7 @@ def test_list_files(drive):
             all_files += [f.to_dict() for f in fs]
 
         assert all_files == files
-        assert disk.reads == 2
+        assert disk.reads == 4
         assert disk.writes == 0
 
 
