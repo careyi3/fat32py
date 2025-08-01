@@ -2,13 +2,19 @@
 
 Minimal FAT32 Client written in Python
 
-Still a work in progress, currently only reads from disk, can't yet write.
-
-This is also a prototype for a version that will be writen in Rust which is being built to operate within some specific constraints imposed by running in an embedded systems environment.
+This is a prototype for a version that will be writen in Rust which is being built to operate within some specific constraints imposed by running in an embedded systems environment.
 
 **The following instructions assumes a Linux or Mac environment*
 
 ![Test](https://github.com/careyi3/fat32py/actions/workflows/test.yml/badge.svg)
+
+## Features
+
+The only features implemented are:
+
+- List the files in the root directory of the drive
+- Append to a file on the drive
+- Create a new file in the root directory of the drive
 
 ## Setup
 
@@ -49,10 +55,17 @@ $ uv run examples/print_files.py
  
 ```
 
-Note: If you want to read from your own physical drive, you will need to edit the name of the drive in the `print_files.py` to match a FAT32 disk on your own system, I recommend using an SDCard. If you plug one into you system, you can see the name for it by listing all the files in your `/dev` directory:
+Note: If you want to read from your own physical drive, you can pass the `--path=<your_drives_path>` argument which will run against your physical drive.
 
 ```bash
-$ cd /dv/
+$ uv run examples/print_files.py --path=/dev/disk4
+ 
+```
+
+I recommend using an SDCard. If you plug one into you system, you can see the name for it by listing all the files in your `/dev` directory:
+
+```bash
+$ cd /dev
 $ ls
  
 ```
