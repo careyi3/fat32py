@@ -288,15 +288,22 @@ def test_append_multiple_clusters_to_file(disk):
                 to_write = file
                 break
 
-    random_text = "".join(random.choices(string.ascii_letters + string.digits, k=1000))
+    random_text = "".join(random.choices(string.ascii_letters + string.digits, k=1600))
     data = bytearray(random_text, "ascii")
 
     file = disk.append_to_file(to_write, data)
-    assert disk.reads == 12
-    assert disk.writes == 6
+    assert disk.reads == 40
+    assert disk.writes == 14
+
+    test = None
+    for files in disk.list_root_files():
+        for file in files:
+            if file.name == "LOG-1":
+                test = file
+                break
 
     output = ""
-    for chunk in disk.read_file_in_chunks(file):
+    for chunk in disk.read_file_in_chunks(test):
         output += chunk.decode("ascii", errors="replace")
 
     assert output == f"log line 1\n{random_text}"
@@ -498,7 +505,7 @@ def test_create_file(disk):
             "is_lfn": False,
             "name": "new",
             "size": 0,
-            "start_cluster": 133,
+            "start_cluster": 5,
             "written": "1980-01-01 00:00:00",
         },
     ]
@@ -516,7 +523,7 @@ def test_create_file(disk):
                 test = file
                 break
 
-    assert test.start_cluster == 133
+    assert test.start_cluster == 5
     assert test.size == 0
 
 
@@ -534,7 +541,7 @@ def test_create_and_write_file(disk):
                 to_write = file
                 break
 
-    assert to_write.start_cluster == 133
+    assert to_write.start_cluster == 5
 
     disk.append_to_file(to_write, bytearray(bytes("Test Data", "ascii")))
     assert disk.reads == 3
@@ -554,3 +561,21 @@ def test_create_and_write_file(disk):
         s += chunk.decode("ascii", errors="replace")
 
     assert s == "Test Data"
+
+
+def test_creating_many_files(disk):
+    disk.init()
+
+    files = []
+    for i in range(0, 100):
+        file = disk.create_file(f"test-{i}")
+        files.append(file.to_dict())
+
+    count = 0
+    read_files = []
+    for files in disk.list_root_files():
+        for file in files:
+            read_files.append(file.to_dict())
+        count += len(files)
+
+    assert count == 109

@@ -3,6 +3,7 @@ from typing import Callable, List, Optional, Tuple, Generator, Any
 from .models import BiosParameterBlock, Partition, File
 
 LOGICAL_BLOCK_SIZE: int = 512
+MAX_FILE_SIZE: int = 4294967296
 
 
 class DiskNotInitialised(Exception):
@@ -169,10 +170,9 @@ class Disk:
         Returns:
             int: Size of the root directory.
         """
-        bytes_per_cluster = self.bios_parameter_block.get_bytes_per_cluster()
         entries = 0
         for chunk, _ in self._read_file_in_chunks(
-            self._get_root_dir_fake_file_record(bytes_per_cluster)
+            self._get_root_dir_fake_file_record(MAX_FILE_SIZE)
         ):
             for i in range(0, len(chunk), 32):
                 entry = chunk[i : i + 32]
@@ -282,12 +282,14 @@ class Disk:
                 if content == 0x00000000:
                     idx = i
                     break
+            if idx is not None:
+                break
             start_id = 0
             sector_num += 1
             if sector_num == fat_sectors:
                 sector_num = 0
             if start_sector == sector_num:
-                break
+                raise Exception
 
         return (data, sector_num, idx)
 
@@ -550,8 +552,9 @@ class Disk:
         to_write = bytearray(new_file.to_bytes())
         to_write.append(0x00)
 
+        root_dir_file = self._get_root_dir_fake_file_record(None)
         self._append_to_file(
-            self._get_root_dir_fake_file_record(None),
+            root_dir_file,
             to_write,
             False,
         )
