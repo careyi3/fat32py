@@ -514,7 +514,7 @@ class Disk:
         else:
             return file
 
-    def _create_file(self, name: str) -> File:
+    def _create_file(self, name: str):
         start_cluster = self._allocate_first_free_cluster()
         new_file = File(
             name,
@@ -536,8 +536,6 @@ class Disk:
             to_write,
             False,
         )
-
-        return new_file
 
     def init(self) -> None:
         """
@@ -614,7 +612,7 @@ class Disk:
             raise DiskNotInitialised
         self.reads = 0
         self.writes = 0
-        return self._create_file(name)
+        self._create_file(name)
 
     @classmethod
     def _get_largest_non_empty_partition(cls, partitions: List[Partition]) -> Partition:
