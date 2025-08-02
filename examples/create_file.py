@@ -1,9 +1,8 @@
 import sys
 import os
-
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
 from pprint import pp
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), ".")))
 from helper import get_disk, parse_args
 
 

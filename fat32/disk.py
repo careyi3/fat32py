@@ -30,6 +30,18 @@ class BlockAddressError(Exception):
         super().__init__(self.message)
 
 
+class DiskFull(Exception):
+    """Exception raised when the disk is full.
+
+    Attributes:
+        message -- explanation of the error
+    """
+
+    def __init__(self, message: str) -> None:
+        self.message = message
+        super().__init__(self.message)
+
+
 class Disk:
     """Object for intefacing with a FAT32 disk.
 
@@ -289,7 +301,7 @@ class Disk:
             if sector_num == fat_sectors:
                 sector_num = 0
             if start_sector == sector_num:
-                raise Exception
+                raise DiskFull("Can't allocate any more memory")
 
         return (data, sector_num, idx)
 
@@ -390,18 +402,6 @@ class Disk:
             else:
                 return cluster
         return cluster
-
-    def _create_file_record(self, file: File) -> File:
-        """
-        Create a new file record (stub).
-
-        Parameters:
-            file (File): The file object to create.
-        Returns:
-            File: The created file object.
-        """
-        # TODO: Make this actually create the file record
-        return file
 
     def _update_file_record_size(self, file: File) -> File:
         """
@@ -530,12 +530,6 @@ class Disk:
         data_sector_bytes_offset = (
             self.bios_parameter_block.get_data_sector_bytes_offset()
         )
-        bytes_per_cluster = self.bios_parameter_block.get_bytes_per_cluster()
-        root_dir_first_cluster = self.bios_parameter_block.get_root_dir_first_cluster()
-
-        offset = data_sector_bytes_offset + (
-            (start_cluster - root_dir_first_cluster) * bytes_per_cluster
-        )
 
         new_file = File(
             name,
@@ -547,17 +541,26 @@ class Disk:
             "1980-01-01",
             "1980-01-01 00:00:00",
             False,
-            offset,
+            0,
         )
         to_write = bytearray(new_file.to_bytes())
         to_write.append(0x00)
 
         root_dir_file = self._get_root_dir_fake_file_record(None)
-        self._append_to_file(
+        last_cluster = self._get_files_last_cluster(root_dir_file)
+        root_dir_file = self._append_to_file(
             root_dir_file,
             to_write,
             False,
         )
+
+        root_dir_first_cluster = self.bios_parameter_block.get_root_dir_first_cluster()
+        bytes_per_cluster = self.bios_parameter_block.get_bytes_per_cluster()
+        offset = data_sector_bytes_offset + (
+            (last_cluster - root_dir_first_cluster) * bytes_per_cluster
+        )
+        byte_offset = offset + ((root_dir_file.size - 33) % LOGICAL_BLOCK_SIZE)
+        new_file.byte_offset = byte_offset
 
         return new_file
 

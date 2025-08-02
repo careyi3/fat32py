@@ -22,35 +22,35 @@ def get_disk(path):
 
         os.chmod(temp_img_path, 0o666)
 
-        with open(temp_img_path, "rb+") as f:
+        f = open(temp_img_path, "rb+")
 
-            def read_block(logical_block_address):
-                f.seek(logical_block_address * 512)
-                return f.read(512)
+        def read_block(logical_block_address):
+            f.seek(logical_block_address * 512)
+            return f.read(512)
 
-            def write_block(logical_block_address, data):
-                f.seek(logical_block_address * 512)
-                return f.write(data)
+        def write_block(logical_block_address, data):
+            f.seek(logical_block_address * 512)
+            return f.write(data)
 
-            disk = Disk(read_block, write_block)
+        disk = Disk(read_block, write_block)
 
-            yield disk
+        yield disk
 
         os.remove(temp_img_path)
     else:
-        with open(path, "rb+") as f:
+        f = open(path, "rb+")
 
-            def read_block(logical_block_address):
-                f.seek(logical_block_address * 512)
-                return f.read(512)
+        def read_block(logical_block_address):
+            f.seek(logical_block_address * 512)
+            return f.read(512)
 
-            def write_block(logical_block_address, data):
-                f.seek(logical_block_address * 512)
-                return f.write(data)
+        def write_block(logical_block_address, data):
+            f.seek(logical_block_address * 512)
+            return f.write(data)
 
-            disk = Disk(read_block, write_block)
+        disk = Disk(read_block, write_block)
 
-            yield disk
+        yield disk
 
 
 def parse_args():

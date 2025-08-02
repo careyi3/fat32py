@@ -1,7 +1,7 @@
 import pytest
 import random
 import string
-from fat32 import Disk, File
+from fat32 import Disk, File, DiskFull
 
 
 def test_init(disk):
@@ -302,6 +302,8 @@ def test_append_multiple_clusters_to_file(disk):
                 test = file
                 break
 
+    assert test.size == 1611
+
     output = ""
     for chunk in disk.read_file_in_chunks(test):
         output += chunk.decode("ascii", errors="replace")
@@ -351,7 +353,7 @@ def test_create_file(disk):
     disk.init()
 
     disk.create_file("new")
-    assert disk.reads == 5
+    assert disk.reads == 6
     assert disk.writes == 2
 
     files = [
@@ -531,7 +533,7 @@ def test_create_and_write_file(disk):
     disk.init()
 
     disk.create_file("new")
-    assert disk.reads == 5
+    assert disk.reads == 6
     assert disk.writes == 2
 
     to_write = None
@@ -579,3 +581,45 @@ def test_creating_many_files(disk):
         count += len(files)
 
     assert count == 109
+
+
+def test_creating_and_writing_lots_of_data(disk):
+    disk.init()
+
+    num_files_to_create = 50
+    for i in range(0, num_files_to_create):
+        file = disk.create_file(f"test-{i}")
+        random_text = "".join(
+            random.choices(string.ascii_letters + string.digits, k=6500)
+        )
+        for _ in range(10):
+            data = bytearray(random_text, "ascii")
+            file = disk.append_to_file(file, data)
+
+    count = 0
+    read_files = []
+    for files in disk.list_root_files():
+        for file in files:
+            read_files.append(file.to_dict())
+        count += len(files)
+
+    size = sum(
+        file["size"] for file in read_files if file.get("name", "").startswith("test")
+    )
+
+    assert size == num_files_to_create * 6500 * 10
+    assert count == 9 + num_files_to_create
+
+
+def test_disk_full_exception(disk):
+    disk.init()
+
+    with pytest.raises(DiskFull, match="Can't allocate any more memory"):
+        for i in range(0, 1200):
+            file = disk.create_file(f"test-{i}")
+            random_text = "".join(
+                random.choices(string.ascii_letters + string.digits, k=6500)
+            )
+            for _ in range(10):
+                data = bytearray(random_text, "ascii")
+                file = disk.append_to_file(file, data)
