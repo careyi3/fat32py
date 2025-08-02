@@ -559,7 +559,7 @@ class Disk:
         offset = data_sector_bytes_offset + (
             (last_cluster - root_dir_first_cluster) * bytes_per_cluster
         )
-        byte_offset = offset + ((root_dir_file.size - 33) % LOGICAL_BLOCK_SIZE)
+        byte_offset = offset + ((root_dir_file.size - 33) % bytes_per_cluster)
         new_file.byte_offset = byte_offset
 
         return new_file
