@@ -4,6 +4,8 @@ Minimal FAT32 Client written in Python
 
 This is a prototype for a version that will be writen in Rust which is being built to operate within some specific constraints imposed by running in an embedded systems environment.
 
+WIP Rust version: [fat32rs](https://github.com/careyi3/fat32rs)
+
 **The following instructions assumes a Linux or Mac environment*
 
 ![Test](https://github.com/careyi3/fat32py/actions/workflows/test.yml/badge.svg)
